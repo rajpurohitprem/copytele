@@ -105,6 +105,11 @@ async def set_id_handler(event):
     await event.edit(f"✅ {real_key.replace('_', ' ').title()} set to `{cid}`", buttons=None)
 
 
+async def main():
+    print("🚀 Bot controller started.")
+    await bot.start()
+    await asyncio.Event().wait()  # Keeps the bot running
+
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     try:
@@ -113,5 +118,6 @@ if __name__ == "__main__":
         print("❌ Bot stopped manually.")
     finally:
         loop.close()
+
 
     bot.run_until_disconnected()
