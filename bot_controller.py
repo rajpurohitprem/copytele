@@ -92,7 +92,7 @@ async def stop(event):
         await event.respond("ℹ️ No task running.")
 
 if __name__ == "__main__":
-    bot.loop.run_until_complete(bot.start())
     anon.start()
+    bot.start()
     print("✅ Bot is running...")
     bot.run_until_disconnected()
