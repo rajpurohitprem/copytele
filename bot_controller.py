@@ -4,7 +4,7 @@ import json
 import os
 import asyncio
 from telethon import TelegramClient, events
-from save_restrictor import save_messages_range
+from save_restrictor import save_messages_in_range
 
 # Load config
 CONFIG_FILE = "config.json"
