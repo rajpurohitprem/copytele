@@ -1,0 +1,22 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Telethon session files
+anon.session
+bot.session
+*.session-journal
+
+# Config and logs
+config.json
+errors.txt
+sent_ids.txt
+downloads/
+*.log
+
+# Environment files
+.env
+
+# VSCode or IDE settings
+.vscode/
+.idea/
