@@ -1,6 +1,6 @@
 # login_anon.py
 from telethon.sync import TelegramClient
-from telethon.errors import ValueError
+#from telethon.errors import ValueError
 from config import load_json
 
 config = load_json()
