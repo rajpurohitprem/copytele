@@ -2,7 +2,6 @@
 import asyncio
 import json
 from telethon import TelegramClient, events, Button
-from telethon import idle 
 from save_restrictor import get_channel_list, set_config_key, save_messages_in_range
 from config import load_json
 
