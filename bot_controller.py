@@ -106,12 +106,12 @@ async def set_id_handler(event):
 
 
 if __name__ == "__main__":
-    async def main():
-        print("🚀 Bot controller started.")
-        await bot.start()
-        # Keeps the bot running forever
-        await asyncio.Event().wait()
-
-    asyncio.run(main())
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(main())
+    except KeyboardInterrupt:
+        print("❌ Bot stopped manually.")
+    finally:
+        loop.close()
 
     bot.run_until_disconnected()
