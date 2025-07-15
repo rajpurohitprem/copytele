@@ -1,22 +1,47 @@
+# save_restrictor.py
 import os
+import json
+import asyncio
+from telethon import TelegramClient
+from telethon.tl.functions.messages import GetHistoryRequest
 from telethon.tl.types import Message
+from config import load_json, set_config_key
+from tqdm import tqdm
 
-os.makedirs("downloads", exist_ok=True)
+CONFIG = load_json()
+SESSION = "anon"
+DOWNLOAD_DIR = "downloads"
 
-async def save_messages_in_range(anon, start_id, end_id, progress_hook):
-    from config import load_json
-    cfg = load_json()
-    src_id, tgt_id = cfg.get("source_channel_id"), cfg.get("target_channel_id")
-    if not src_id or not tgt_id:
-        await progress_hook("❗ Missing source/target in config.")
-        return
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-    src = await anon.get_entity(src_id)
-    tgt = await anon.get_entity(tgt_id)
+anon = TelegramClient(SESSION, CONFIG["api_id"], CONFIG["api_hash"])
+
+async def get_channel_list():
+    await anon.connect()
+    dialogs = await anon.get_dialogs()
+    return [d.entity for d in dialogs if d.is_channel and not d.is_user]
+
+def set_config_key(key, value):
+    CONFIG[key] = value
+    with open("config.json", "w") as f:
+        json.dump(CONFIG, f, indent=2)
+
+async def check_channel_access():
+    try:
+        await anon.connect()
+        await anon.get_entity(int(CONFIG["source_channel_id"]))
+        await anon.get_entity(int(CONFIG["target_channel_id"]))
+        return True
+    except:
+        return False
+
+async def save_messages_in_range(start_id, end_id, msg_obj, bot):
+    await anon.connect()
+    src = await anon.get_entity(int(CONFIG["source_channel_id"]))
+    tgt = await anon.get_entity(int(CONFIG["target_channel_id"]))
+
     total = end_id - start_id + 1
-    done = 0
-
-    await progress_hook(f"⏳ Starting: {total} msgs from {start_id} to {end_id}")
+    progress = tqdm(total=total, desc="Processing", unit="msg")
 
     for msg_id in range(start_id, end_id + 1):
         try:
@@ -24,20 +49,20 @@ async def save_messages_in_range(anon, start_id, end_id, progress_hook):
             if not msg or not isinstance(msg, Message):
                 continue
 
-            if msg.media:
-                path = await anon.download_media(msg, file="downloads/")
-                if path:
-                    await anon.send_file(tgt, path, caption=msg.text or "", silent=True)
-                    os.remove(path)
-            elif msg.text:
-                await anon.send_message(tgt, msg.text, silent=True)
+            text = msg.text or msg.message or ""
 
-            done += 1
+            if msg.media:
+                path = await anon.download_media(msg, file=DOWNLOAD_DIR)
+                if path:
+                    await anon.send_file(tgt, path, caption=text)
+                    os.remove(path)
+            elif text:
+                await anon.send_message(tgt, text)
+
+            progress.update(1)
 
         except Exception as e:
-            await progress_hook(f"❌ Failed ID {msg_id}: {e}")
+            await bot.send_message(CONFIG.get("log_channel_id"), f"❌ Failed for ID {msg_id}: {e}")
+    progress.close()
+    await msg_obj.edit(f"✅ Done saving {total} messages.")
 
-        if done % 5 == 0 or done == total:
-            await progress_hook(f"📤 Sent {done}/{total}")
-
-    await progress_hook(f"✅ Completed! {done}/{total} messages copied.")
