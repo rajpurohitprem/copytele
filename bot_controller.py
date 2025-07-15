@@ -75,7 +75,7 @@ async def save_range(event):
     await event.respond(f"📥 Saving messages from `{start_id}` to `{end_id}`...", parse_mode="md")
 
     async def run_save():
-        await save_messages_range(bot, anon, start_id, end_id, event)
+        await save_messages_in_range(bot, anon, start_id, end_id, event)
 
     current_task = asyncio.create_task(run_save())
 
