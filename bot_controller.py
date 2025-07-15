@@ -106,7 +106,6 @@ async def set_id_handler(event):
 
 if __name__ == "__main__":
     print("🚀 Bot controller started.")
-    if __name__ == "__main__":
     async def main():
         print("🚀 Bot controller started.")
         await bot.start()
