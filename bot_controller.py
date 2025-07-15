@@ -105,12 +105,14 @@ async def set_id_handler(event):
     set_config_key(real_key, int(cid))
     await event.edit(f"✅ {real_key.replace('_', ' ').title()} set to `{cid}`", buttons=None)
 
+
 if __name__ == "__main__":
-    print("🚀 Bot controller started.")
     async def main():
         print("🚀 Bot controller started.")
         await bot.start()
-        await idle()  # Keep the bot running
+        # Keeps the bot running forever
+        await asyncio.Event().wait()
 
     asyncio.run(main())
+
     bot.run_until_disconnected()
