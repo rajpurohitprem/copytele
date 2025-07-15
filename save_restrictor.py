@@ -1,26 +1,22 @@
 import os
 from telethon.tl.types import Message
 
-# Make sure downloads folder exists
 os.makedirs("downloads", exist_ok=True)
 
-async def save_messages_in_range(bot, anon, start_id, end_id, event):
+async def save_messages_in_range(anon, start_id, end_id, progress_hook):
     from config import load_json
-    config = load_json()
-
-    src_id = config.get("source_channel_id")
-    tgt_id = config.get("target_channel_id")
-
+    cfg = load_json()
+    src_id, tgt_id = cfg.get("source_channel_id"), cfg.get("target_channel_id")
     if not src_id or not tgt_id:
-        await bot.send_message(event.chat_id, "❗ Source or Target channel ID missing in config.")
+        await progress_hook("❗ Missing source/target in config.")
         return
 
     src = await anon.get_entity(src_id)
     tgt = await anon.get_entity(tgt_id)
+    total = end_id - start_id + 1
+    done = 0
 
-    sent_count = 0
-
-    await bot.send_message(event.chat_id, f"📥 Saving messages from `{start_id}` to `{end_id}`...")
+    await progress_hook(f"⏳ Starting: {total} msgs from {start_id} to {end_id}")
 
     for msg_id in range(start_id, end_id + 1):
         try:
@@ -29,20 +25,19 @@ async def save_messages_in_range(bot, anon, start_id, end_id, event):
                 continue
 
             if msg.media:
-                file_path = await anon.download_media(msg, file="downloads/")
-                if file_path:
-                    await anon.send_file(
-                        tgt,
-                        file_path,
-                        caption=msg.text or msg.message or ""
-                    )
-                    os.remove(file_path)
-            elif msg.text or msg.message:
-                await anon.send_message(tgt, msg.text or msg.message)
+                path = await anon.download_media(msg, file="downloads/")
+                if path:
+                    await anon.send_file(tgt, path, caption=msg.text or "", silent=True)
+                    os.remove(path)
+            elif msg.text:
+                await anon.send_message(tgt, msg.text, silent=True)
 
-            sent_count += 1
+            done += 1
 
         except Exception as e:
-            await bot.send_message(event.chat_id, f"❌ Error at ID {msg_id}: {e}")
+            await progress_hook(f"❌ Failed ID {msg_id}: {e}")
 
-    await bot.send_message(event.chat_id, f"✅ Done! Total messages saved: `{sent_count}`.")
+        if done % 5 == 0 or done == total:
+            await progress_hook(f"📤 Sent {done}/{total}")
+
+    await progress_hook(f"✅ Completed! {done}/{total} messages copied.")
