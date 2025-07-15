@@ -9,8 +9,8 @@ pkg update -y && pkg upgrade -y
 pkg install -y python git
 
 # 3. Clone your GitHub repo
-git clone https://github.com/rajpurohitprem/Copy.git
-cd Copy || { echo "❌ Failed to cd into Copy"; exit 1; }
+git clone https://github.com/rajpurohitprem/Copytele.git
+cd Copytele || { echo "❌ Failed to cd into Copy"; exit 1; }
 
 # 4. Install Python requirements
 pip install --upgrade pip
