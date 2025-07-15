@@ -1,0 +1,11 @@
+# 1. Update Termux & install Git + Python
+pkg update -y && pkg upgrade -y
+pkg install -y git python
+
+# 2. Clone your repo
+git clone https://github.com/rajpurohitprem/Copy.git
+cd Copy
+
+# 3. Run installer script
+chmod +x setup.sh
+./setup.sh
