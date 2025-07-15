@@ -1,7 +1,7 @@
 # bot_controller.py
 import asyncio
 import json
-from telethon import TelegramClient, events, Button
+from telethon import TelegramClient, events, Button, idle
 from save_restrictor import get_channel_list, set_config_key, save_messages_in_range
 from config import load_json
 
@@ -106,5 +106,11 @@ async def set_id_handler(event):
 
 if __name__ == "__main__":
     print("🚀 Bot controller started.")
-    bot.loop.run_until_complete(bot.start())
+    if __name__ == "__main__":
+    async def main():
+        print("🚀 Bot controller started.")
+        await bot.start()
+        await idle()  # Keep the bot running
+
+    asyncio.run(main())
     bot.run_until_disconnected()
