@@ -1,98 +1,110 @@
 # bot_controller.py
-
-import json
-import os
 import asyncio
-from telethon import TelegramClient, events
-from save_restrictor import save_messages_in_range
-
-# Load config
-CONFIG_FILE = "config.json"
-SESSION_FILE = "anon"
-
-def load_json():
-    if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r") as f:
-            return json.load(f)
-    return {}
-
-def save_json(data):
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+import json
+from telethon import TelegramClient, events, Button
+from save_restrictor import get_channel_list, set_config_key, save_messages_in_range
+from config import load_json
 
 config = load_json()
-API_ID = config.get("api_id")
-API_HASH = config.get("api_hash")
-BOT_TOKEN = config.get("bot_token")
-ADMIN_ID = config.get("admin_id")
-
-# Create clients
-anon = TelegramClient(SESSION_FILE, API_ID, API_HASH)
-bot = TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
-
-current_task = None
+bot = TelegramClient("bot", config["api_id"], config["api_hash"]).start(bot_token=config["bot_token"])
 
 @bot.on(events.NewMessage(pattern="/start"))
-async def start(event):
-    if event.sender_id != ADMIN_ID:
-        return
-    await event.respond("🤖 *Save Restrict Bot Ready!*\n\n"
-                        "Commands:\n"
-                        "`/set_source <id>`\n"
-                        "`/set_target <id>`\n"
-                        "`/save <start>-<end>`\n"
-                        "`/stop`",
-                        parse_mode="md")
+async def start_handler(event):
+    await event.respond(
+        "**Welcome to Save Restrict Bot**\n\n"
+        "Commands:\n"
+        "/set_source - Set source channel\n"
+        "/set_target - Set target channel\n"
+        "/set_log - Set log channel\n"
+        "/save <start_id>-<end_id> - Save message range\n"
+        "/check_access - Check anon client channel access\n"
+        "/panel - Show control panel"
+    )
 
-@bot.on(events.NewMessage(pattern=r"/set_source (-?\d+)"))
-async def set_source(event):
-    if event.sender_id != ADMIN_ID:
-        return
-    ch_id = int(event.pattern_match.group(1))
-    config = load_json()
-    config["source_channel_id"] = ch_id
-    save_json(config)
-    await event.respond(f"✅ Source channel set to ID: `{ch_id}`", parse_mode="md")
-
-@bot.on(events.NewMessage(pattern=r"/set_target (-?\d+)"))
-async def set_target(event):
-    if event.sender_id != ADMIN_ID:
-        return
-    ch_id = int(event.pattern_match.group(1))
-    config = load_json()
-    config["target_channel_id"] = ch_id
-    save_json(config)
-    await event.respond(f"✅ Target channel set to ID: `{ch_id}`", parse_mode="md")
+@bot.on(events.NewMessage(pattern="/panel"))
+async def panel_handler(event):
+    await event.respond(
+        "🔘 Choose Action",
+        buttons=[
+            [Button.inline("📥 Set Source", "set_src")],
+            [Button.inline("📤 Set Target", "set_tgt")],
+            [Button.inline("🧾 Set Log", "set_log")],
+            [Button.inline("✅ Check Access", "check_access")]
+        ]
+    )
 
 @bot.on(events.NewMessage(pattern=r"/save (\d+)-(\d+)"))
-async def save_range(event):
-    global current_task
-    if event.sender_id != ADMIN_ID:
-        return
-    start_id = int(event.pattern_match.group(1))
-    end_id = int(event.pattern_match.group(2))
+async def save_handler(event):
+    start_id, end_id = map(int, event.pattern_match.groups())
+    msg = await event.respond(f"📦 Saving messages {start_id} to {end_id}...")
+    await save_messages_in_range(start_id, end_id, msg, bot)
 
-    await event.respond(f"📥 Saving messages from `{start_id}` to `{end_id}`...", parse_mode="md")
-
-    async def run_save():
-        await save_messages_in_range(bot, anon, start_id, end_id, event)
-
-    current_task = asyncio.create_task(run_save())
-
-@bot.on(events.NewMessage(pattern="/stop"))
-async def stop(event):
-    global current_task
-    if event.sender_id != ADMIN_ID:
-        return
-    if current_task:
-        current_task.cancel()
-        await event.respond("⛔ Task stopped.")
-        current_task = None
+@bot.on(events.NewMessage(pattern="/check_access"))
+async def access_check(event):
+    from save_restrictor import check_channel_access
+    msg = await event.respond("🔍 Checking channel access...")
+    ok = await check_channel_access()
+    if ok:
+        await msg.edit("✅ Anon client is joined to source and target channels.")
     else:
-        await event.respond("ℹ️ No task running.")
+        await msg.edit("❌ Anon client is NOT in one or more channels.")
+
+@bot.on(events.NewMessage(pattern="/set_source"))
+async def manual_set_source(event):
+    msg = event.raw_text.strip().split()
+    if len(msg) < 2:
+        return await event.respond("Usage: `/set_source <channel_id>`")
+    try:
+        set_config_key("source_channel_id", int(msg[1]))
+        await event.respond("✅ Source channel set manually.")
+    except:
+        await event.respond("❌ Failed to set source channel.")
+
+@bot.on(events.NewMessage(pattern="/set_target"))
+async def manual_set_target(event):
+    msg = event.raw_text.strip().split()
+    if len(msg) < 2:
+        return await event.respond("Usage: `/set_target <channel_id>`")
+    try:
+        set_config_key("target_channel_id", int(msg[1]))
+        await event.respond("✅ Target channel set manually.")
+    except:
+        await event.respond("❌ Failed to set target channel.")
+
+@bot.on(events.NewMessage(pattern="/set_log"))
+async def manual_set_log(event):
+    msg = event.raw_text.strip().split()
+    if len(msg) < 2:
+        return await event.respond("Usage: `/set_log <channel_id>`")
+    try:
+        set_config_key("log_channel_id", int(msg[1]))
+        await event.respond("✅ Log channel set manually.")
+    except:
+        await event.respond("❌ Failed to set log channel.")
+
+# Inline button handling
+@bot.on(events.CallbackQuery(data=lambda d: d in [b"set_src", b"set_tgt", b"set_log"]))
+async def inline_channel_select(event):
+    chs = await get_channel_list()
+    n = event.data.decode().split("_")[-1]
+    btns = [
+        Button.inline(f"{d.title[:30]} [{str(d.id)[-4:]}]", f"set_{n}:{d.id}")
+        for d in chs
+    ]
+    await event.edit(f"Select {n} channel ({len(btns)} found):", buttons=[[b] for b in btns])
+
+@bot.on(events.CallbackQuery(pattern=r"set_(src|tgt|log):"))
+async def set_id_handler(event):
+    key, cid = event.data.decode().split(":")
+    real_key = {
+        "src": "source_channel_id",
+        "tgt": "target_channel_id",
+        "log": "log_channel_id"
+    }.get(key)
+    set_config_key(real_key, int(cid))
+    await event.edit(f"✅ {real_key.replace('_', ' ').title()} set to `{cid}`", buttons=None)
 
 if __name__ == "__main__":
-    anon.start()
-    bot.start()
-    print("✅ Bot is running...")
+    print("🚀 Bot controller started.")
+    bot.loop.run_until_complete(bot.start())
     bot.run_until_disconnected()
